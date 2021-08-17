@@ -8,6 +8,7 @@ body{
     background-color: #111;
     color:#BD75B6;
     font-family: 'Orbitron', sans-serif;
+    -webkit-tap-highlight-color: transparent;
 }
 
 button, .player-name{
@@ -115,10 +116,10 @@ h1{
 }
 
 .player{
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
     align-items:center;
-    justify-content: center;
+    justify-items: center;
     gap:1em;
 }
 
