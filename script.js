@@ -3,18 +3,19 @@ function Players(name, marker){
     var setName = (newName) => name = newName;
     var getMarker = () => marker;
     var setMarker = (newMarker) => marker = newMarker; 
-
     return {getName, setName, getMarker, setMarker};
 }
 
 const Gameboard = (function(){
     const gameboard_btns = Array.from(document.querySelectorAll('.gameboard-btn'));
     const clear_gameboard = document.querySelector('#clear-gameboard');
+    
     let ai_move;
     let current_marker = 'X';
     let board = [['','',''],
                  ['','',''],
                  ['','','']];
+
 
     const clear = function (){
         _player_name_add_glow();
@@ -22,11 +23,11 @@ const Gameboard = (function(){
         Game.setWinnerBtnText([]);
         Game.set_winner_bool(false);
         board = [['','',''],
-        ['','',''],
-        ['','','']];
+                 ['','',''],
+                 ['','','']];
         
         gameboard_btns.forEach(btn => {
-            btn.children[0].textContent = '';
+            btn.firstChild.textContent = '';
             btn.disabled = false;
             gsap.to(btn.firstChild, {duration: 0.3, scale: 0});
             if(btn.firstChild.classList) btn.firstChild.classList.remove('x-input');
@@ -36,7 +37,7 @@ const Gameboard = (function(){
         if(Game.getRound() % 2 === 0 && Game.getMode() === 'single_player') _AI_turn();
     }
 
-    const _push_board_data = function(index, data) {
+    const push_board_data = function(index, data) {
         let row = Math.floor(index / 3);
         let col = index - (3 * row);;
         board[row][col] = data;
@@ -70,44 +71,40 @@ const Gameboard = (function(){
 
             btn.firstChild.textContent = player_marker;
             _data_X_addClass(btn.firstChild);   
-            _push_board_data(gameboard_btns.indexOf(btn), btn.firstChild.textContent);
+            push_board_data(gameboard_btns.indexOf(btn), btn.firstChild.textContent);
             Game.check_board_data();
 
         },
-        easy_AI(){
+        AI(){
             setTimeout(function (){
-                ai_move = Computer.easy.move(); //it will return chosen btn index and the data
+                let level = Game.get_AI_level();
+                (level === 'Easy') ? [ai_chosen_index, ai_current_marker] = Computer.easy.move() : [ai_chosen_index, ai_current_marker] = Computer.unbeatable.move();
 
-                if(ai_move){
-                    _push_board_data(ai_move[0], ai_move[1])
-                    _data_X_addClass(gameboard_btns[ai_move[0]].firstChild);
+                if(ai_chosen_index || ai_chosen_index === 0){
+                    //It will not execute if there's no available empty field for computer move.
+                    push_board_data(ai_chosen_index, ai_current_marker)
+                    _data_X_addClass(gameboard_btns[ai_chosen_index].firstChild);
                     Game.glow_playername(Player.player_names[1], 'remove');
                     Game.glow_playername(Player.player_names[0], 'add');
                     Game.check_board_data();
                 } 
             }, 500);
         },
-
-        hard_AI(){},
     }
 
-    const _AI_turn = function (){
-        if(!Game.have_winner()){
+    const _AI_turn = function(){
+        if(!Game.state_winner(board)){
             Game.glow_playername(Player.player_names[1], 'add');      
             Game.glow_playername(Player.player_names[0], 'remove');
             
-            if(Game.get_AI_level() === 'Easy'){
-                player_move.easy_AI();
-            }else if(Game.get_AI_level() === 'Unbeatable'){
-                player_move.hard_AI();
-            }
+            player_move.AI();
         }
     }
 
     const _players_turn = function(e){
-        player_move.player(e.target);   //Player move first then
+        player_move.player(e.target);   //Player1 move first then
         
-        if(Game.getMode() === 'single_player'){     //AI turn next if it's not 2 players mode else player turn next
+        if(Game.getMode() === 'single_player'){     //AI turn next if it's not 2 players mode else player2 turn next
             _AI_turn();
         }
     }
@@ -120,7 +117,7 @@ const Gameboard = (function(){
 
     const addEvent = function(){
         clear_gameboard.addEventListener('click', clear, false);
-        gameboard_btns.forEach(btn => btn.addEventListener('click', _players_turn.bind(event),false))
+        gameboard_btns.forEach(btn => btn.addEventListener('click', _players_turn.bind(event),false));
     }
 
     return {addEvent, 
@@ -180,8 +177,9 @@ const Player = (function(){
         }
     }
 
-    function _change_player_name(playerName, input_name_field, e){
+    function _change_player_name(playerName, input_name_field, e){  //It will invoke if the player click the elements in main div including itself or player press enter on input field
         if(input_name_field.style.display === 'block'){
+            //if the player clicks on the other playername or on the input field, the value of input field will not set
             if((e.target.classList[0] != 'player-name' && e.target.classList[0] != 'input-player-name') || e.key === 'Enter'){
                 if(input_name_field.value.length >= 15){
                     alert('Player name must be less than 15 character!');
@@ -202,8 +200,8 @@ const Player = (function(){
         }
     }
 
-    function show_edit_name_field(e){
-        if(e.target.tagName === 'I') return;
+    function show_edit_name_field(e){   //It will invoke if the player click the playername
+        if(e.target.tagName === 'I') return;    //If the player clicks on the pencil icon on playername, the input field will not show.
 
         const input_fields = Array.from(document.querySelectorAll('.player > input'));
         const input_name_field = document.querySelector(`.${e.target.classList[1]} + input`);
@@ -214,8 +212,8 @@ const Player = (function(){
 
         playerName.style.display = 'none';
         input_name_field.style.display = 'block';
-        input_name_field.value = e.target.textContent.split(/ \([XO]\)/)[0];
-        input_name_field.select();  //it will highlight the playername
+        input_name_field.value = e.target.textContent.split(/ \([XO]\)/)[0];    //default value of input field is playername excluding (X) or (O) 
+        input_name_field.select();  //it will highlight automatically the value of input field after you click the playername
 
         input_name_field.addEventListener('keyup', _change_player_name.bind(event, playerName, input_name_field), false)
         main_container.addEventListener('click', _change_player_name.bind(event, playerName, input_name_field), false);
@@ -234,17 +232,79 @@ const Player = (function(){
 
 
 const Computer = (function(){
+    Xscores = {     //Minimax: scores if computer playing as X
+        X : 1,
+        O: -1,
+        Tie: 0
+    }
+
+    Oscores = {     //Minimax: scores if computer playing as O
+        X : -1,
+        O : 1,
+        Tie: 0
+    }
+
+    function minimax(board, depth, isMaximizing){
+        result = Game.state_winner(board, test=true);
+        if(result != null){ //The code inside of this statement will execute if there's a temporary winner or tie game in the minimax
+            if(Player.getPlayers().player2.getMarker() === 'X'){
+                return Xscores[result];
+            }
+            return Oscores[result];
+        }
+
+        if(isMaximizing){
+            //It will execute if the current turn is the computer
+            let marker = Player.getPlayers().player2.getMarker();
+            let bestScore = -Infinity;
+
+            for(let i = 0; i <3; i++){
+                for(let j = 0; j < 3; j++){
+                    if(board[i][j] == ''){
+                        board[i][j] = marker;
+                        let score = minimax(board, depth + 1, false);
+                        board[i][j] = '';
+
+                        bestScore = Math.max(score, bestScore);
+                    }
+                }
+            }
+            return bestScore;
+        }else{
+            //It will execute if the current turn is the human
+            let marker = Player.getPlayers().player1.getMarker();
+            let bestScore = Infinity;
+
+            for(let i = 0; i <3; i++){
+                for(let j = 0; j < 3; j++){
+                    if(board[i][j] == ''){
+                        board[i][j] = marker;
+                        let score = minimax(board, depth + 1, true);
+                        board[i][j] = '';
+
+                        bestScore = Math.min(score, bestScore);
+                    }
+                }
+            }
+            return bestScore;
+        }
+
+    }
+
+
     const easy = {
         move(){
             let gameboard_btns = Gameboard.gameboard_btns;
             let empty_field_btns = Gameboard.getEmptyField();
 
             if(empty_field_btns.length){
+                //it will execute if there's available space to move for computer
                 let r = Math.floor(Math.random() * empty_field_btns.length);
                 let selected_empty_field = empty_field_btns[r];
                 let selected_field = gameboard_btns[gameboard_btns.indexOf(selected_empty_field)].firstChild
 
                 selected_field.textContent = Player.getPlayers().player2.getMarker();
+                Gameboard.push_board_data
                 return [gameboard_btns.indexOf(selected_empty_field), selected_field.textContent];
             }
         }
@@ -252,7 +312,28 @@ const Computer = (function(){
 
     const unbeatable = {
         move(){
+            let board = Gameboard.getBoard();
+            let bestMove;
+            let player2marker = Player.getPlayers().player2.getMarker();
+            let bestScore = -Infinity;
 
+            for(let i = 0; i <3; i++){//loop all field on the current board
+                for(let j = 0; j < 3; j++){
+                    if(board[i][j] == ''){  //check the current field if it's empty
+                        board[i][j] = player2marker;    //if it is, set temporarily the player2 marker to this empty field, this current board will be a root node
+                        let score = minimax(board, 0, false); // then it will checks the other empty field or child nodes of this current board and get the best score usiong minimax
+                        board[i][j] = ''; //undo the set marker on this field
+
+                        if(score > bestScore){  // if the current score from the minimax is higher than the best score then
+                            bestScore = score; // this current field of the board is the best move for computer
+                            bestMove = {i , j}
+                        }
+                    }
+                }
+            }
+
+            let empty_selected_field = Game.getButtonTextGrid()[bestMove.i][bestMove.j]; 
+            return [Gameboard.gameboard_btns.indexOf(empty_selected_field), player2marker];
         }
     }
 
@@ -270,12 +351,9 @@ const Game = (function(){
     const winner_text = document.querySelector('#state-winner');
 
     let winner_btn_texts = [];
-    let board = [];
     let round = 1;
-    let playerX_score = 0;
-    let playerO_score = 0;
-    let playerO_score_node;
-    let playerX_score_node;
+    let score1 = 0;
+    let score2 = 0;
     let mode = 'single_player';
     let AI_level = 'Easy';
     let winner = false;
@@ -283,11 +361,12 @@ const Game = (function(){
 
     let new_btns = [...Gameboard.gameboard_btns]; //copy the gameboard btns array;
     let button_text_grid = [];
-    while(new_btns.length) button_text_grid.push(new_btns.splice(0,3)); //convert gameboard_btns to 2d array
+    while(new_btns.length) button_text_grid.push(new_btns.splice(0,3)); //convert 1D gameboard_btns array to 2d array
 
     function game_config_DOM(){
         let AI_level_container = config_btns[2];
         let playAs = config_btns[1];
+        
         if(mode === 'single_player'){
             AI_level_container.style.display = 'flex';
             playAs.style.display = 'flex';
@@ -301,8 +380,8 @@ const Game = (function(){
         Gameboard.clear();
         player1_score.textContent = 0;
         player2_score.textContent = 0;
-        playerX_score = 0;
-        playerO_score = 0;
+        score1 = 0;
+        score2 = 0;
         round=1;
         winner = false;
     }
@@ -315,50 +394,97 @@ const Game = (function(){
         }
     }
 
-    const _check_player_data = function(){
-        if(Player.getPlayers().player1.getMarker() === 'X'){
-            playerX_score_node = player1_score;
-            playerO_score_node = player2_score;
-        }else if(Player.getPlayers().player1.getMarker() === 'O'){
-            playerX_score_node = player2_score;
-            playerO_score_node = player1_score;
-        }
+    const isValidPlays = function (a,b,c){
+        if(a === b && b === c && a != ''){
+            return true;
+        }return false;
     }
 
-    const check_winner = function(indexes1, indexes2, indexes3, marker, player_type){
-        if(winner) return;
-
-        if(board[indexes1[0]][indexes1[1]] === marker && board[indexes2[0]][indexes2[1]] === marker && board[indexes3[0]][indexes3[1]] === marker){
-            if(player_type === 'playerX'){
-                playerX_score++;
-                playerX_score_node.textContent = playerX_score;
-            }else if(player_type === 'playerO') {
-                playerO_score++;
-                playerO_score_node.textContent = playerO_score;
+    const state_winner = function(board, test=false){
+        for(let i = 0; i < 3; i++){     //row;
+            if(isValidPlays(board[i][0], board[i][1], board[i][2])){
+                winner_btn_texts = [button_text_grid[i][0], button_text_grid[i][1], button_text_grid[i][2]];
+                add_winner_text_btn_effect(winner_btn_texts, test);
+                return board[i][0];
             }
-
-            if(Player.getPlayers().player1.getMarker() === marker){
-                winner_player = Player.getPlayers().player1.getName();
-            }else{
-                winner_player = Player.getPlayers().player2.getName();
-            }
-
-            winner_text.textContent = `${winner_player} wins!`;
-            winner = true;
-            Gameboard.gameboard_btns.forEach(btn => btn.disabled=true);
-            round++;
-
-            winner_btn_texts = [button_text_grid[indexes1[0]][indexes1[1]], button_text_grid[indexes2[0]][indexes2[1]], button_text_grid[indexes3[0]][indexes3[1]]];
-            winner_text_btn_effect(winner_btn_texts, 'add');
-            _state_winner_effect();
         }
+
+        for(let i = 0; i < 3; i++){     //column;
+            if(isValidPlays(board[0][i] , board[1][i] , board[2][i])){
+                winner_btn_texts = [button_text_grid[0][i], button_text_grid[1][i], button_text_grid[2][i]];
+                add_winner_text_btn_effect(winner_btn_texts, test);
+                return board[0][i];
+            }
+        }
+
+        //DIAGONAL
+        if(isValidPlays(board[0][0] , board[1][1] , board[2][2])){
+            winner_btn_texts = [button_text_grid[0][0], button_text_grid[1][1], button_text_grid[2][2]];
+            add_winner_text_btn_effect(winner_btn_texts, test);
+            return board[0][0];
+        }
+        
+        if(isValidPlays(board[0][2] , board[1][1] , board[2][0])){
+            winner_btn_texts = [button_text_grid[0][2], button_text_grid[1][1], button_text_grid[2][0]];
+            add_winner_text_btn_effect(winner_btn_texts, test);
+            return board[0][2];
+        }
+
+        let empty = 0;
+        for(let i = 0; i < 3; i++){
+            for(let j = 0; j < 3; j++){
+                if(board[i][j] === '') empty++;
+            }
+        }
+
+        if(empty === 0 && !winner) return 'Tie';
+
+        return null;
+    }
+
+    const display_winner = function(){
+        let winner_markerX = state_winner(Gameboard.getBoard());
+        let player1_marker = Player.getPlayers().player1.getMarker();
+        let player2_marker = Player.getPlayers().player2.getMarker();
+
+        if(winner_markerX === null) return;
+
+        if(winner_markerX === player1_marker){
+            winner_player = Player.getPlayers().player1;
+            score1++;
+            player1_score.textContent = score1;
+
+        }else if(winner_markerX === player2_marker){
+            winner_player = Player.getPlayers().player2;
+            score2++;
+            player2_score.textContent = score2;
+
+        }else if(winner_markerX === 'Tie'){
+            winner_text.textContent = "It's a tie!";
+            round++;
+            _state_winner_effect();
+            return;
+        }
+
+        winner_text.textContent = `${winner_player.getName()} wins!`;
+        winner = true;
+        Gameboard.gameboard_btns.forEach(btn => btn.disabled=true);
+        round++;
+        _state_winner_effect();
     }
 
     const winner_text_btn_effect = function(btn_texts, state){
         if(state == 'add'){
             btn_texts.forEach(btn_text => btn_text.firstChild.classList.add('winner-btn-text'));
+
         }else if(state == 'remove'){
             btn_texts.forEach(btn_text => btn_text.firstChild.classList.remove('winner-btn-text'));
+        }
+    }
+
+    const add_winner_text_btn_effect = function(datas, test=false){
+        if(!test){
+            winner_text_btn_effect(datas, 'add');
         }
     }
 
@@ -372,41 +498,7 @@ const Game = (function(){
 
     const check_board_data = function() {
         board = Gameboard.getBoard();
-        _check_player_data();
-        //row === 'X'
-        check_winner([0,0], [0,1], [0,2], 'X', 'playerX');
-        check_winner([1,0], [1,1], [1,2], 'X', 'playerX');
-        check_winner([2,0], [2,1], [2,2], 'X', 'playerX');
-
-        //col === 'X'
-        check_winner([0,0], [1,0], [2,0], 'X', 'playerX');
-        check_winner([0,1], [1,1], [2,1], 'X', 'playerX');
-        check_winner([0,2], [1,2], [2,2], 'X', 'playerX');
-
-        //diagonal(X) === 'X'
-        check_winner([0,2], [1,1],[2,0], 'X', 'playerX');
-        check_winner([0,0],[1,1],[2,2], 'X', 'playerX');
-
-
-        //row === 'O'
-        check_winner([0,0], [0,1], [0,2], 'O', 'playerO');
-        check_winner([1,0], [1,1], [1,2], 'O', 'playerO');
-        check_winner([2,0], [2,1], [2,2], 'O', 'playerO');
-
-        //col === 'O'
-        check_winner([0,0], [1,0], [2,0], 'O', 'playerO');
-        check_winner([0,1], [1,1], [2,1], 'O', 'playerO');
-        check_winner([0,2], [1,2], [2,2], 'O', 'playerO');
-
-        //diagonal(X) === 'O'
-        check_winner([0,2], [1,1],[2,0], 'O', 'playerO');
-        check_winner([0,0],[1,1],[2,2], 'O', 'playerO');
-
-        if(!Gameboard.getEmptyField().length && !winner){
-            winner_text.textContent = "It's a tie!";
-            round++;
-            _state_winner_effect();
-        }
+        display_winner();
     }
 
     const button_event = {
@@ -420,25 +512,27 @@ const Game = (function(){
                 two_player.style.display = 'block';
                 mode_container.style.gridColumn = '1/4'
                 mode = 'two_player';
+
             }else{
                 single_player.style.display = 'block';
                 two_player.style.display = 'none';
                 mode_container.style.gridColumn = '1/2'
                 mode = 'single_player';
             }
-            reset();
+
             game_config_DOM();
             Player.change_player_property_value();
+            reset();
         },
         change_marker(){
             (Player.player1_marker.textContent === 'X') ? Player.player1_marker.textContent = 'O' : Player.player1_marker.textContent = 'X';
-            reset();
             Player.change_player_property_value();
+            reset();
         },
         change_difficulties(){
-            (difficulties.textContent === 'Easy') ? difficulties.textContent = 'Unbeatable' : difficulties.textContent = 'Easy';
-            reset();
+            (difficulties.textContent === 'Easy') ? difficulties.textContent = 'Expert' : difficulties.textContent = 'Easy';
             AI_level = difficulties.textContent;
+            reset();
         },
     }
 
@@ -454,6 +548,8 @@ const Game = (function(){
             check_board_data,
             glow_playername,
             winner_text_btn_effect,
+            state_winner,
+            getButtonTextGrid : () => button_text_grid,
             getMode : () => mode,
             get_AI_level : () => AI_level,
             set_winner_bool : (bool) => winner = bool,
@@ -464,10 +560,10 @@ const Game = (function(){
     }
 })();
 
-function startGame(){
+function init(){
     Player.create_player();
     Game.glow_playername(Player.player_names[0], 'add');
     Game.addEvent();
 }
 
-startGame();
+init();
