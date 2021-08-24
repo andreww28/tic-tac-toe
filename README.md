@@ -1,6 +1,6 @@
 <p align="left">
   <a href="" rel="noopener">
- <img width=1020 height=600px src="https://postimg.cc/v47WLB95" alt="Project Screenshot"></a>
+ <img width=1020 height=600px src="https://i.postimg.cc/VkpDw0kZ/Screenshot-35.png" alt="Project Screenshot"></a>
 </p>
 
 <h1 align="center">Tic Tac Toe</h1>
